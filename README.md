@@ -6,7 +6,7 @@ This is a simple and easy-to-use email library for Go that allows you to send em
 - Send emails with plain text or HTML content
 - Attach files to your emails
 - Support for CC and BCC recipients
-- Support for different providers
+- Support for different providers:
   - **Console**: print emails to stdout in compliance with RFC 2046 (for development & testing purposes)
   - **Sendgrid**: send emails using the Sendgrid API
   - **Mailchimp**: send emails using the Mailchimp API (coming soon...)
