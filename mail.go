@@ -175,37 +175,37 @@ func (m *Message) HasContent() bool     { return (m.TextContent != "") || (m.HTM
 func (m *Message) HasAttachments() bool { return len(m.Attachments) > 0 }
 
 func (m *Message) String() string {
-	var buff bytes.Buffer
+	var builder strings.Builder
 
-	buff.WriteString("To: ")
+	builder.WriteString("To: ")
 	for _, to := range m.To {
-		buff.WriteString(to.String())
-		buff.WriteString(", ")
+		builder.WriteString(to.String())
+		builder.WriteString(", ")
 	}
-	buff.WriteString("\n")
+	builder.WriteString("\n")
 
 	if len(m.Cc) > 0 {
-		buff.WriteString("CC: ")
+		builder.WriteString("CC: ")
 		for _, cc := range m.Cc {
-			buff.WriteString(cc.String())
-			buff.WriteString(", ")
+			builder.WriteString(cc.String())
+			builder.WriteString(", ")
 		}
-		buff.WriteString("\n")
+		builder.WriteString("\n")
 	}
 
 	if len(m.Bcc) > 0 {
-		buff.WriteString("BCC: ")
+		builder.WriteString("BCC: ")
 		for _, bcc := range m.Bcc {
-			buff.WriteString(bcc.String())
-			buff.WriteString(", ")
+			builder.WriteString(bcc.String())
+			builder.WriteString(", ")
 		}
-		buff.WriteString("\n")
+		builder.WriteString("\n")
 	}
 
-	buff.WriteString("Subject: ")
-	buff.WriteString(m.Subject)
+	builder.WriteString("Subject: ")
+	builder.WriteString(m.Subject)
 
-	return buff.String()
+	return builder.String()
 }
 
 // ParseTemplates parses all templates in the given rootpath and stores them in the global templates cache.
