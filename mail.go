@@ -134,8 +134,8 @@ func (m *Message) Attach(r io.Reader, filename string, contentType ...string) er
 	attachment := Attachment{Filename: filename}
 
 	// read & attach content
-	var content []byte
-	if _, err := r.Read(content); err != nil {
+	content, err := io.ReadAll(r)
+	if err != nil {
 		return errors.Wrapf(err, "reading content of %s", filename)
 	}
 	// base64 encode content
