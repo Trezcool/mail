@@ -214,6 +214,8 @@ func ParseTemplates(fsys fs.FS, rootpath string, baseTmplName ...string) error {
 		templates = make(tmplCache)
 	}
 
+	rootpath = filepath.Clean(rootpath) + "/"
+
 	// TODO: support multiple base templates ?
 	baseTmpl := lo.Ternary(len(baseTmplName) > 0, baseTmplName[0], "")
 	hasBase := baseTmpl != ""
@@ -240,7 +242,7 @@ func ParseTemplates(fsys fs.FS, rootpath string, baseTmplName ...string) error {
 
 		tmplPaths := lo.Ternary(
 			hasBase,
-			[]string{rootpath + baseTmpl + ext, path},
+			[]string{filepath.Join(rootpath, baseTmpl+ext), path},
 			[]string{path},
 		)
 
