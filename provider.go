@@ -28,6 +28,8 @@ func (p baseProvider) SendMessages(messages ...*Message) <-chan error {
 		wg.Add(1)
 		msg := msg
 		go func() {
+			defer wg.Done()
+
 			if !msg.HasRecipients() {
 				errs <- errors.Errorf("no recipients for email %s", msg.Subject)
 				return
