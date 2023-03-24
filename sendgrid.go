@@ -6,6 +6,7 @@ import (
 	"net/mail"
 
 	"github.com/pkg/errors"
+	"github.com/samber/lo"
 	"github.com/sendgrid/sendgrid-go"
 	sgmail "github.com/sendgrid/sendgrid-go/helpers/mail"
 )
@@ -54,15 +55,9 @@ func (p SendgridProvider) prepare(msg Message) *sgmail.SGMailV3 {
 	perso := sgmail.NewPersonalization()
 	perso.Subject = p.subjPrefix + msg.Subject
 
-	for _, to := range msg.To {
-		perso.AddTos(getSGEmail(to))
-	}
-	for _, cc := range msg.Cc {
-		perso.AddCCs(getSGEmail(cc))
-	}
-	for _, bcc := range msg.Bcc {
-		perso.AddBCCs(getSGEmail(bcc))
-	}
+	perso.AddTos(addressesToSGEmails(msg.To)...)
+	perso.AddCCs(addressesToSGEmails(msg.Cc)...)
+	perso.AddBCCs(addressesToSGEmails(msg.Bcc)...)
 
 	m := sgmail.NewV3Mail()
 	m.SetFrom(p.from)
@@ -73,22 +68,24 @@ func (p SendgridProvider) prepare(msg Message) *sgmail.SGMailV3 {
 		sgmail.NewContent(contentTypeHTML, msg.HTMLContent),
 	)
 
-	for _, a := range msg.Attachments {
-		m.AddAttachment(getSGAttachment(a))
-	}
+	m.AddAttachment(attachmentsToSGAttachments(msg.Attachments)...)
 
 	return m
 }
 
-func getSGEmail(addr mail.Address) *sgmail.Email {
-	return sgmail.NewEmail(addr.Name, addr.Address)
+func addressesToSGEmails(addrs []mail.Address) []*sgmail.Email {
+	return lo.Map(addrs, func(addr mail.Address, _ int) *sgmail.Email {
+		return sgmail.NewEmail(addr.Name, addr.Address)
+	})
 }
 
-func getSGAttachment(at Attachment) *sgmail.Attachment {
-	return &sgmail.Attachment{
-		Content:     at.Content.String(),
-		Type:        at.ContentType,
-		Filename:    at.Filename,
-		Disposition: dispositionAttachment,
-	}
+func attachmentsToSGAttachments(attachments []Attachment) []*sgmail.Attachment {
+	return lo.Map(attachments, func(at Attachment, _ int) *sgmail.Attachment {
+		return &sgmail.Attachment{
+			Content:     at.Content.String(),
+			Type:        at.ContentType,
+			Filename:    at.Filename,
+			Disposition: dispositionAttachment,
+		}
+	})
 }
