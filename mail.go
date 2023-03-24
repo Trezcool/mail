@@ -133,17 +133,11 @@ func (m *Message) Render() error {
 func (m *Message) Attach(r io.Reader, filename string, contentType ...string) error {
 	attachment := Attachment{Filename: filename}
 
-	// read & attach content
+	// read content
 	content, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "reading content of %s", filename)
 	}
-	// base64 encode content
-	encoder := base64.NewEncoder(base64.StdEncoding, attachment.Content)
-	if _, err := encoder.Write(content); err != nil {
-		return errors.Wrapf(err, "encoding content of %s", filename)
-	}
-	_ = encoder.Close()
 
 	// set content type
 	if len(contentType) > 0 {
@@ -151,6 +145,13 @@ func (m *Message) Attach(r io.Reader, filename string, contentType ...string) er
 	} else {
 		attachment.ContentType = http.DetectContentType(content)
 	}
+
+	// base64 encode & attach content
+	encoder := base64.NewEncoder(base64.StdEncoding, attachment.Content)
+	if _, err := encoder.Write(content); err != nil {
+		return errors.Wrapf(err, "encoding content of %s", filename)
+	}
+	_ = encoder.Close()
 
 	m.Attachments = append(m.Attachments, attachment)
 	return nil
