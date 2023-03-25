@@ -20,13 +20,11 @@ const (
 
 // SendgridProvider sends emails using the Sendgrid API
 type SendgridProvider struct {
-	baseProvider
+	BaseProvider
 	key        string
 	from       *sgmail.Email
 	subjPrefix string
 }
-
-var _ Provider = (*SendgridProvider)(nil)
 
 func NewSendgridProvider(fromEmail mail.Address, subjPrefix, apiKey string) *SendgridProvider {
 	return &SendgridProvider{

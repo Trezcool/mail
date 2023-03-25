@@ -11,14 +11,9 @@ const (
 	contentTypeHTML = "text/html"
 )
 
-// Provider is any service that can send emails
-type Provider interface {
-	SendMessages(messages ...*Message) <-chan error
-}
+type BaseProvider struct{}
 
-type baseProvider struct{}
-
-func (p baseProvider) SendMessages(messages ...*Message) <-chan error {
+func (p BaseProvider) SendMessages(messages ...*Message) <-chan error {
 	var (
 		errs = make(chan error)
 		wg   sync.WaitGroup
@@ -59,6 +54,6 @@ func (p baseProvider) SendMessages(messages ...*Message) <-chan error {
 	return errs
 }
 
-func (p baseProvider) send(msg Message) error {
+func (p BaseProvider) send(msg Message) error {
 	panic("implement me")
 }

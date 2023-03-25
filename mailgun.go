@@ -2,7 +2,7 @@ package mail
 
 //goland:noinspection GoNameStartsWithPackageName
 type MailGunProvider struct {
-	baseProvider
+	BaseProvider
 }
 
 func (p *MailGunProvider) send(msg Message) error {

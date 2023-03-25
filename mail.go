@@ -218,10 +218,10 @@ func ParseTemplates(fsys fs.FS, rootpath string, baseTmplName ...string) error {
 	rootpath = filepath.Clean(rootpath) + "/"
 
 	// TODO: support multiple base templates ?
-	baseTmpl := lo.Ternary(len(baseTmplName) > 0, baseTmplName[0], "")
-	hasBase := baseTmpl != ""
+	hasBase := len(baseTmplName) > 0
+	baseTmpl := lo.Ternary(hasBase, baseTmplName[0], "")
 
-	paths, err := fs.Glob(fsys, rootpath+"*") // TODO: walk instead of glob ?
+	paths, err := fs.Glob(fsys, rootpath+"*") // TODO: walk instead ?
 	if err != nil {
 		return errors.Wrapf(err, "globbing %s", rootpath)
 	}

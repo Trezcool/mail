@@ -27,8 +27,6 @@ type ConsoleProvider struct {
 	quiet      bool
 }
 
-var _ Provider = (*ConsoleProvider)(nil)
-
 func NewConsoleProvider(fromEmail mail.Address, subjPrefix string, quiet ...bool) *ConsoleProvider {
 	return &ConsoleProvider{
 		fromEmail:  fromEmail,
