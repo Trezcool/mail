@@ -150,7 +150,7 @@ func (m *Message) Attach(r io.Reader, filename string, contentType ...string) er
 	// base64 encode & attach content
 	encoder := base64.NewEncoder(base64.StdEncoding, attachment.Content)
 	defer func() { _ = encoder.Close() }()
-	if _, err := encoder.Write(content); err != nil {
+	if _, err = encoder.Write(content); err != nil {
 		return errors.Wrapf(err, "encoding content of %s", filename)
 	}
 
