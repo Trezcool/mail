@@ -3,34 +3,20 @@ package mail
 import (
 	"bytes"
 	"encoding/base64"
-	htmltmpl "html/template"
 	"io"
-	"io/fs"
 	"net/http"
 	"net/mail"
 	"os"
 	"path/filepath"
 	"strings"
-	texttmpl "text/template"
 
 	"github.com/pkg/errors"
-	"github.com/samber/lo"
 )
 
 // todo: ci
 // todo: cd -> godoc with examples
 
-var templates tmplCache
-
-const (
-	extText = ".txt"
-	extHTML = ".gohtml"
-)
-
 type (
-	tmplCacheEntry map[string]interface{}    // {ext: *Template}
-	tmplCache      map[string]tmplCacheEntry // {name: {tmplCacheEntry}}
-
 	// Message holds all the information needed to send an email
 	// TODO: add support for provider's templated messages
 	Message struct {
@@ -59,46 +45,29 @@ type (
 	}
 )
 
+func (m *Message) isSimple() bool {
+	return m.BodyStr != ""
+}
+
 func (m *Message) getContextData() ContextData {
 	return ContextData{
 		Data: m.TemplateData,
 	}
 }
 
-func (m *Message) getTemplate(ext string) (interface{}, error) {
-	if m.TemplateName == "" {
-		return nil, errors.New("template name is empty")
-	}
-
-	cache, ok := templates[m.TemplateName]
-	if !ok {
-		return nil, errors.Errorf("template %s not found", m.TemplateName)
-	}
-
-	return cache[ext], nil
-}
-
 func (m *Message) renderText() error {
-	if m.BodyStr != "" {
+	if m.isSimple() {
 		m.TextContent = m.BodyStr
 		return nil
 	}
 
-	tmplEntry, err := m.getTemplate(extText)
-	if err != nil {
-		return err
-	}
-	if tmplEntry == nil {
+	tmpl, ok := templates.getText(m.TemplateName)
+	if !ok {
 		return nil
 	}
 
-	tmpl, ok := tmplEntry.(*texttmpl.Template)
-	if !ok {
-		return errors.Errorf("template %s is not a text template", m.TemplateName)
-	}
-
 	var buff bytes.Buffer
-	if err = tmpl.Execute(&buff, m.getContextData()); err != nil {
+	if err := tmpl.Execute(&buff, m.getContextData()); err != nil {
 		return errors.Wrap(err, "executing template")
 	}
 
@@ -107,21 +76,13 @@ func (m *Message) renderText() error {
 }
 
 func (m *Message) renderHTML() error {
-	tmplEntry, err := m.getTemplate(extHTML)
-	if err != nil {
-		return err
-	}
-	if tmplEntry == nil {
+	tmpl, ok := templates.getHTML(m.TemplateName)
+	if !ok {
 		return nil
 	}
 
-	tmpl, ok := tmplEntry.(*htmltmpl.Template)
-	if !ok {
-		return errors.Errorf("template %s is not a html template", m.TemplateName)
-	}
-
 	var buff bytes.Buffer
-	if err = tmpl.Execute(&buff, m.getContextData()); err != nil {
+	if err := tmpl.Execute(&buff, m.getContextData()); err != nil {
 		return errors.Wrap(err, "executing template")
 	}
 
@@ -129,8 +90,23 @@ func (m *Message) renderHTML() error {
 	return nil
 }
 
-// Render renders available email templates formats todo: test
-func (m *Message) Render() error {
+// Render renders the different message contents.
+//
+// If the message is simple (BodyStr is not empty), it will only render the text
+// otherwise it will render both text and html templates
+func (m *Message) Render() error { // todo: test
+	if m.isSimple() {
+		return m.renderText()
+	}
+
+	if m.TemplateName == "" {
+		return errors.New("template name is empty")
+	}
+
+	if !templates.contains(m.TemplateName) {
+		return errors.Errorf("template %s not found", m.TemplateName)
+	}
+
 	if err := m.renderText(); err != nil {
 		return errors.Wrap(err, "rendering text template")
 	}
@@ -219,61 +195,4 @@ func (m *Message) String() string {
 	builder.WriteString(m.Subject)
 
 	return builder.String()
-}
-
-// ParseTemplates parses all templates in the given rootpath and stores them in the global templates cache.
-func ParseTemplates(fsys fs.FS, rootpath string, baseTmplName ...string) error {
-	if templates == nil {
-		templates = make(tmplCache)
-	}
-
-	rootpath = filepath.Clean(rootpath) + "/"
-
-	// TODO: support multiple base templates ?
-	hasBase := len(baseTmplName) > 0
-	baseTmpl := lo.Ternary(hasBase, baseTmplName[0], "")
-
-	paths, err := fs.Glob(fsys, rootpath+"*") // TODO: walk instead ?
-	if err != nil {
-		return errors.Wrapf(err, "globbing %s", rootpath)
-	}
-
-	for _, path := range paths {
-		filename := filepath.Base(path)
-		ext := filepath.Ext(filename)
-		isBase := lo.Ternary(hasBase, strings.HasPrefix(filename, baseTmpl), false)
-		if isBase || !(ext == extText || ext == extHTML) {
-			continue
-		}
-
-		name := filename[:strings.LastIndex(filename, ".")]
-		entry, ok := templates[name]
-		if !ok {
-			entry = make(tmplCacheEntry)
-			templates[name] = entry
-		}
-
-		tmplPaths := lo.Ternary(
-			hasBase,
-			[]string{filepath.Join(rootpath, baseTmpl+ext), path},
-			[]string{path},
-		)
-
-		switch ext {
-		case extText:
-			tmpl, parseErr := texttmpl.ParseFS(fsys, tmplPaths...)
-			if parseErr != nil {
-				return errors.Wrapf(parseErr, "parsing %s files %v", ext, tmplPaths)
-			}
-			entry[ext] = tmpl
-		case extHTML:
-			tmpl, parseErr := htmltmpl.ParseFS(fsys, tmplPaths...)
-			if parseErr != nil {
-				return errors.Wrapf(parseErr, "parsing %s files %v", ext, tmplPaths)
-			}
-			entry[ext] = tmpl
-		}
-	}
-
-	return nil
 }
