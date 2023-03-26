@@ -65,13 +65,12 @@ func (m *Message) getContextData() ContextData {
 	}
 }
 
-func (m *Message) getTemplate(ext string) (interface{}, bool) {
+func (m *Message) getTemplate(ext string) (interface{}, error) {
 	cache, ok := templates[m.TemplateName]
 	if !ok {
-		return nil, ok
+		return nil, errors.Errorf("template %s not found", m.TemplateName)
 	}
-	tmplEntry, ok := cache[ext]
-	return tmplEntry, ok
+	return cache[ext], nil
 }
 
 func (m *Message) renderText() error {
@@ -82,17 +81,17 @@ func (m *Message) renderText() error {
 		return nil
 	}
 
-	tmplEntry, ok := m.getTemplate(extText)
-	if !ok {
-		return nil
+	tmplEntry, err := m.getTemplate(extText)
+	if err != nil {
+		return err
 	}
 	tmpl, ok := tmplEntry.(*texttmpl.Template)
 	if !ok {
-		return nil
+		return errors.Errorf("template %s is not a text template", m.TemplateName)
 	}
 
 	var buff bytes.Buffer
-	if err := tmpl.Execute(&buff, m.getContextData()); err != nil {
+	if err = tmpl.Execute(&buff, m.getContextData()); err != nil {
 		return errors.Wrap(err, "executing template")
 	}
 
@@ -105,17 +104,17 @@ func (m *Message) renderHTML() error {
 		return nil
 	}
 
-	tmplEntry, ok := m.getTemplate(extHTML)
-	if !ok {
-		return nil
+	tmplEntry, err := m.getTemplate(extHTML)
+	if err != nil {
+		return err
 	}
 	tmpl, ok := tmplEntry.(*htmltmpl.Template)
 	if !ok {
-		return nil
+		return errors.Errorf("template %s is not a html template", m.TemplateName)
 	}
 
 	var buff bytes.Buffer
-	if err := tmpl.Execute(&buff, m.getContextData()); err != nil {
+	if err = tmpl.Execute(&buff, m.getContextData()); err != nil {
 		return errors.Wrap(err, "executing template")
 	}
 
