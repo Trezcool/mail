@@ -85,6 +85,10 @@ func (m *Message) renderText() error {
 	if err != nil {
 		return err
 	}
+	if tmplEntry == nil {
+		return nil
+	}
+
 	tmpl, ok := tmplEntry.(*texttmpl.Template)
 	if !ok {
 		return errors.Errorf("template %s is not a text template", m.TemplateName)
@@ -108,6 +112,10 @@ func (m *Message) renderHTML() error {
 	if err != nil {
 		return err
 	}
+	if tmplEntry == nil {
+		return nil
+	}
+
 	tmpl, ok := tmplEntry.(*htmltmpl.Template)
 	if !ok {
 		return errors.Errorf("template %s is not a html template", m.TemplateName)
