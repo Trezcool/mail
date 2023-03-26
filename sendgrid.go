@@ -20,21 +20,26 @@ const (
 
 // SendgridProvider sends emails using the Sendgrid API
 type SendgridProvider struct {
-	BaseProvider
-	key        string
-	from       *sgmail.Email
-	subjPrefix string
+	*BaseProvider
+	key string
 }
 
-func NewSendgridProvider(fromEmail mail.Address, subjPrefix, apiKey string) *SendgridProvider {
-	return &SendgridProvider{
-		key:        apiKey,
-		from:       sgmail.NewEmail(fromEmail.Name, fromEmail.Address),
-		subjPrefix: subjPrefix,
+func NewSendgridProvider(
+	apiKey string,
+	from mail.Address,
+	opts ...Option,
+) (*SendgridProvider, <-chan error) {
+	bp, errC := NewBaseProvider(from, opts...)
+
+	p := &SendgridProvider{
+		BaseProvider: bp,
+		key:          apiKey,
 	}
+	return p, errC
 }
 
-func (p SendgridProvider) send(msg Message) error {
+// TODO: test
+func (p *SendgridProvider) send(msg Message) error {
 	req := sendgrid.GetRequest(p.key, sgEndpoint, sgHost)
 	req.Method = http.MethodPost
 	req.Body = sgmail.GetRequestBody(p.prepare(msg))
@@ -49,7 +54,7 @@ func (p SendgridProvider) send(msg Message) error {
 	return nil
 }
 
-func (p SendgridProvider) prepare(msg Message) *sgmail.SGMailV3 {
+func (p *SendgridProvider) prepare(msg Message) *sgmail.SGMailV3 {
 	perso := sgmail.NewPersonalization()
 	perso.Subject = p.subjPrefix + msg.Subject
 
@@ -58,7 +63,7 @@ func (p SendgridProvider) prepare(msg Message) *sgmail.SGMailV3 {
 	perso.AddBCCs(addressesToSGEmails(msg.Bcc)...)
 
 	m := sgmail.NewV3Mail()
-	m.SetFrom(p.from)
+	m.SetFrom(sgmail.NewEmail(p.from.Name, p.from.Address))
 	m.AddPersonalizations(perso)
 
 	m.AddContent(

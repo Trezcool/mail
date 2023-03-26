@@ -17,6 +17,9 @@ import (
 	"github.com/samber/lo"
 )
 
+// todo: ci
+// todo: cd -> godoc with examples
+
 var templates tmplCache
 
 const (
@@ -120,6 +123,7 @@ func (m *Message) renderHTML() error {
 	return nil
 }
 
+// Render renders available email templates formats todo: test
 func (m *Message) Render() error {
 	if err := m.renderText(); err != nil {
 		return errors.Wrap(err, "rendering text template")
@@ -131,6 +135,7 @@ func (m *Message) Render() error {
 	)
 }
 
+// Attach reads the content of the reader and attaches it to the message
 func (m *Message) Attach(r io.Reader, filename string, contentType ...string) error {
 	attachment := Attachment{Filename: filename}
 
@@ -158,6 +163,7 @@ func (m *Message) Attach(r io.Reader, filename string, contentType ...string) er
 	return nil
 }
 
+// AttachFile attaches the content of the file to the message todo: test
 func (m *Message) AttachFile(path string, contentType ...string) error {
 	file, err := os.Open(path)
 	if err != nil {

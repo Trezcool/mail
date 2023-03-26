@@ -1,59 +1,140 @@
 package mail
 
 import (
+	"net/mail"
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/conc/pool"
 )
 
 const (
 	contentTypeText = "text/plain"
 	contentTypeHTML = "text/html"
+
+	defaultMaxWorkers = 3
 )
 
-type BaseProvider struct{}
+// BaseProvider is a base implementation of the Provider interface
+type BaseProvider struct {
+	from       mail.Address
+	subjPrefix string
+	maxWorkers int
+	queue      chan Message
+	watchOnce  sync.Once
+}
 
-func (p BaseProvider) SendMessages(messages ...*Message) <-chan error {
-	var (
-		errs = make(chan error)
-		wg   sync.WaitGroup
-	)
+func NewBaseProvider(
+	from mail.Address,
+	opts ...Option,
+) (*BaseProvider, <-chan error) {
+	config := providerConfig{
+		subjPrefix: "",
+		maxWorkers: defaultMaxWorkers,
+	}
 
-	for _, msg := range messages { // TODO: use a worker pool
-		wg.Add(1)
-		msg := msg
-		go func() {
-			defer wg.Done()
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&config)
+		}
+	}
 
-			if !msg.HasRecipients() {
-				errs <- errors.Errorf("no recipients for email %s", msg.Subject)
-				return
-			}
+	p := &BaseProvider{
+		from:       from,
+		subjPrefix: config.subjPrefix,
+		maxWorkers: config.maxWorkers,
+	}
+	return p, p.init()
+}
 
-			if err := msg.Render(); err != nil {
-				errs <- errors.Wrapf(err, "rendering email %s", msg.Subject)
-				return
-			}
+func (p *BaseProvider) init() <-chan error {
+	errC := make(chan error)
 
-			if !(msg.HasContent() || msg.HasAttachments()) {
-				errs <- errors.Errorf("no content or attachments for email %s", msg.Subject)
+	p.watchOnce.Do(func() {
+		p.queue = make(chan Message, p.maxWorkers)
+
+		go p.watch(errC)
+	})
+
+	return errC
+}
+
+func (p *BaseProvider) watch(errC chan<- error) {
+	wp := pool.
+		New().
+		WithMaxGoroutines(p.maxWorkers)
+
+	for message := range p.queue {
+		msg := &message
+		wp.Go(func() {
+			if err := p.render(msg); err != nil {
+				errC <- err
 				return
 			}
 
 			if err := p.send(*msg); err != nil {
-				errs <- errors.Wrapf(err, "sending email %s", msg.Subject)
+				errC <- errors.Wrapf(err, "sending email %s", msg)
 			}
-		}()
+		})
 	}
 
-	go func() {
-		wg.Wait()
-		close(errs)
-	}()
-
-	return errs
+	wp.Wait()
+	close(errC)
 }
 
-func (p BaseProvider) send(msg Message) error {
+func (p *BaseProvider) render(msg *Message) error {
+	if !msg.HasRecipients() {
+		return errors.Errorf("no recipients for email %s", msg)
+	}
+
+	if err := msg.Render(); err != nil {
+		return errors.Wrapf(err, "rendering email %s", msg)
+	}
+
+	if !(msg.HasContent() || msg.HasAttachments()) {
+		return errors.Errorf("no content or attachments for email %s", msg)
+	}
+
+	return nil
+}
+
+func (p *BaseProvider) send(msg Message) error {
 	panic("implement me")
+}
+
+// SendMessage pushes messages to the queue
+func (p *BaseProvider) SendMessage(messages ...Message) {
+	for _, msg := range messages {
+		p.queue <- msg
+	}
+}
+
+// Close closes the queue
+func (p *BaseProvider) Close() {
+	close(p.queue)
+}
+
+type providerConfig struct {
+	subjPrefix string
+	maxWorkers int
+}
+
+// Option is a configuration option for the provider
+type Option func(*providerConfig)
+
+// WithSubjectPrefix sets the default subject prefix for all messages
+func WithSubjectPrefix(prefix string) Option {
+	return func(o *providerConfig) {
+		o.subjPrefix = prefix
+	}
+}
+
+// WithMaxWorkers sets the maximum number of workers
+func WithMaxWorkers(max uint) Option {
+	if max == 0 {
+		return nil
+	}
+	return func(o *providerConfig) {
+		o.maxWorkers = int(max)
+	}
 }
