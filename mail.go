@@ -66,18 +66,21 @@ func (m *Message) getContextData() ContextData {
 }
 
 func (m *Message) getTemplate(ext string) (interface{}, error) {
+	if m.TemplateName == "" {
+		return nil, errors.New("template name is empty")
+	}
+
 	cache, ok := templates[m.TemplateName]
 	if !ok {
 		return nil, errors.Errorf("template %s not found", m.TemplateName)
 	}
+
 	return cache[ext], nil
 }
 
 func (m *Message) renderText() error {
 	if m.BodyStr != "" {
 		m.TextContent = m.BodyStr
-		return nil
-	} else if m.TemplateName == "" {
 		return nil
 	}
 
@@ -104,10 +107,6 @@ func (m *Message) renderText() error {
 }
 
 func (m *Message) renderHTML() error {
-	if m.TemplateName == "" {
-		return nil
-	}
-
 	tmplEntry, err := m.getTemplate(extHTML)
 	if err != nil {
 		return err
