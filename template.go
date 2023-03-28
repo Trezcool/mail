@@ -17,31 +17,31 @@ const (
 )
 
 type tmplCache struct {
-	textCache map[string]*texttmpl.Template
-	htmlCache map[string]*htmltmpl.Template
+	text map[string]*texttmpl.Template
+	html map[string]*htmltmpl.Template
 }
 
 func newTmplCache() *tmplCache {
 	return &tmplCache{
-		textCache: make(map[string]*texttmpl.Template),
-		htmlCache: make(map[string]*htmltmpl.Template),
+		text: make(map[string]*texttmpl.Template),
+		html: make(map[string]*htmltmpl.Template),
 	}
 }
 
 func (c *tmplCache) contains(name string) bool {
-	_, ok := c.textCache[name]
+	_, ok := c.text[name]
 	if ok {
 		return ok
 	}
-	_, ok = c.htmlCache[name]
+	_, ok = c.html[name]
 	return ok
 }
 func (c *tmplCache) getText(name string) (*texttmpl.Template, bool) {
-	tmpl, ok := c.textCache[name]
+	tmpl, ok := c.text[name]
 	return tmpl, ok
 }
 func (c *tmplCache) getHTML(name string) (*htmltmpl.Template, bool) {
-	tmpl, ok := c.htmlCache[name]
+	tmpl, ok := c.html[name]
 	return tmpl, ok
 }
 
@@ -88,13 +88,13 @@ func ParseTemplates(fsys fs.FS, rootpath string, baseTmplName ...string) error {
 			if parseErr != nil {
 				return errors.Wrapf(parseErr, "parsing %s files %v", ext, tmplPaths)
 			}
-			templates.textCache[name] = tmpl
+			templates.text[name] = tmpl
 		case extHTML:
 			tmpl, parseErr := htmltmpl.ParseFS(fsys, tmplPaths...)
 			if parseErr != nil {
 				return errors.Wrapf(parseErr, "parsing %s files %v", ext, tmplPaths)
 			}
-			templates.htmlCache[name] = tmpl
+			templates.html[name] = tmpl
 		}
 	}
 
