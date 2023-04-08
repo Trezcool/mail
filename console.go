@@ -33,41 +33,78 @@ func NewConsoleProvider(
 
 // TODO: test
 func (p *ConsoleProvider) send(msg Message) (err error) {
-	body := new(strings.Builder)
+	buffer := new(strings.Builder)
 
-	// Write mail header
-	_, _ = fmt.Fprintf(body, "From: %s\r\n", p.from.String())
-	_, _ = fmt.Fprint(body, "MIME-Version: 1.0\r\n")
-	_, _ = fmt.Fprintf(body, "Date: %s\r\n", time.Now().Format(time.RFC1123Z)) // todo: mock time for tests
-	_, _ = fmt.Fprintf(body, "Subject: %s\r\n", p.subjPrefix+msg.Subject)
-	_, _ = fmt.Fprintf(body, "To: %s\r\n", joinAddresses(msg.To))
-	_, _ = fmt.Fprintf(body, "CC: %s\r\n", joinAddresses(msg.Cc))
-	_, _ = fmt.Fprintf(body, "BCC: %s\r\n", joinAddresses(msg.Bcc))
+	p.writeHeader(buffer, msg)
 
 	var mixedW *multipart.Writer
-	altW := multipart.NewWriter(body) // todo: mock random boundary in multipart writer for tests
+	altW := multipart.NewWriter(buffer) // todo: mock random boundary in multipart writer for tests
 	defer func() { _ = altW.Close() }()
 
-	if msg.HasAttachments() {
-		mixedW = multipart.NewWriter(body)
-		defer func() { _ = mixedW.Close() }()
-		_, _ = fmt.Fprintf(body, "Content-Type: multipart/mixed\r\n")
-		_, _ = fmt.Fprintf(body, "Content-Type: boundary=%s\r\n", mixedW.Boundary())
-	} else {
-		_, _ = fmt.Fprintf(body, "Content-Type: multipart/alternative\r\n")
-		_, _ = fmt.Fprintf(body, "Content-Type: boundary=%s\r\n", altW.Boundary())
+	if err = p.writeMultipartContentType(altW, mixedW, buffer, msg); err != nil {
+		return err
 	}
-	_, _ = fmt.Fprint(body, "\r\n")
 
 	if mixedW != nil {
-		if _, err = mixedW.CreatePart(textproto.MIMEHeader{
+		defer func() { _ = mixedW.Close() }()
+	}
+
+	var w io.Writer
+	if err = p.writeBody(altW, w, msg); err != nil {
+		return err
+	}
+
+	if err = p.writeAttachments(mixedW, w, msg); err != nil {
+		return err
+	}
+
+	log.Println(buffer.String()) // todo: mock logger for tests
+	return nil
+}
+
+func (p *ConsoleProvider) writeHeader(w io.Writer, msg Message) {
+	_, _ = fmt.Fprintf(w, "From: %s\r\n", p.from.String())
+	_, _ = fmt.Fprint(w, "MIME-Version: 1.0\r\n")
+	_, _ = fmt.Fprintf(w, "Date: %s\r\n", time.Now().Format(time.RFC1123Z)) // todo: mock time for tests
+	_, _ = fmt.Fprintf(w, "Subject: %s\r\n", p.subjPrefix+msg.Subject)
+	_, _ = fmt.Fprintf(w, "To: %s\r\n", joinAddresses(msg.To))
+	_, _ = fmt.Fprintf(w, "CC: %s\r\n", joinAddresses(msg.Cc))
+	_, _ = fmt.Fprintf(w, "BCC: %s\r\n", joinAddresses(msg.Bcc))
+}
+
+func (p *ConsoleProvider) writeMultipartContentType(
+	altW, mixedW *multipart.Writer,
+	w io.Writer,
+	msg Message,
+) error {
+	if msg.HasAttachments() {
+		if mixedW == nil {
+			mixedW = multipart.NewWriter(w)
+		}
+		_, _ = fmt.Fprintf(w, "Content-Type: multipart/mixed\r\n")
+		_, _ = fmt.Fprintf(w, "Content-Type: boundary=%s\r\n", mixedW.Boundary())
+	} else {
+		_, _ = fmt.Fprintf(w, "Content-Type: multipart/alternative\r\n")
+		_, _ = fmt.Fprintf(w, "Content-Type: boundary=%s\r\n", altW.Boundary())
+	}
+	_, _ = fmt.Fprint(w, "\r\n")
+
+	if mixedW != nil {
+		if _, err := mixedW.CreatePart(textproto.MIMEHeader{
 			"Content-Type": {"multipart/alternative", "boundary=" + altW.Boundary()},
 		}); err != nil {
 			return errors.Wrap(err, "creating multipart/alternative part")
 		}
 	}
 
-	var w io.Writer
+	return nil
+}
+
+func (p *ConsoleProvider) writeBody(
+	altW *multipart.Writer,
+	w io.Writer,
+	msg Message,
+) (err error) {
 	if msg.TextContent != "" {
 		w, err = altW.CreatePart(textproto.MIMEHeader{"Content-Type": {contentTypeText}})
 		if err != nil {
@@ -84,21 +121,30 @@ func (p *ConsoleProvider) send(msg Message) (err error) {
 		_, _ = fmt.Fprintf(w, "%s\r\n", msg.HTMLContent)
 	}
 
-	if mixedW != nil {
-		for _, at := range msg.Attachments {
-			w, err = mixedW.CreatePart(textproto.MIMEHeader{
-				"Content-Type":              {at.ContentType},
-				"Content-Transfer-Encoding": {"base64"},
-				"Content-Disposition":       {"attachment; filename=" + at.Filename},
-			})
-			if err != nil {
-				return errors.Wrap(err, "creating "+at.ContentType+" part")
-			}
-			_, _ = fmt.Fprintf(w, "%s\r\n", at.Content.String())
-		}
+	return nil
+}
+
+func (p *ConsoleProvider) writeAttachments(
+	mixedW *multipart.Writer,
+	w io.Writer,
+	msg Message,
+) (err error) {
+	if mixedW == nil {
+		return nil
 	}
 
-	log.Println(body.String()) // todo: mock logger for tests
+	for _, at := range msg.Attachments {
+		w, err = mixedW.CreatePart(textproto.MIMEHeader{
+			"Content-Type":              {at.ContentType},
+			"Content-Transfer-Encoding": {"base64"},
+			"Content-Disposition":       {"attachment; filename=" + at.Filename},
+		})
+		if err != nil {
+			return errors.Wrap(err, "creating "+at.ContentType+" part")
+		}
+		_, _ = fmt.Fprintf(w, "%s\r\n", at.Content.String())
+	}
+
 	return nil
 }
 
