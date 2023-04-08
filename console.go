@@ -14,6 +14,12 @@ import (
 	"github.com/samber/lo"
 )
 
+const (
+	headerContentType        = "Content-Type"
+	headerTransferEncoding   = "Content-Transfer-Encoding"
+	headerContentDisposition = "Content-Disposition"
+)
+
 // ConsoleProvider prints emails to stdout in compliance with RFC 2046
 type ConsoleProvider struct {
 	*BaseProvider
@@ -91,7 +97,7 @@ func (p *ConsoleProvider) writeMultipartContentType(
 
 	if mixedW != nil {
 		if _, err := mixedW.CreatePart(textproto.MIMEHeader{
-			"Content-Type": {"multipart/alternative", "boundary=" + altW.Boundary()},
+			headerContentType: {"multipart/alternative", "boundary=" + altW.Boundary()},
 		}); err != nil {
 			return errors.Wrap(err, "creating multipart/alternative part")
 		}
@@ -106,7 +112,7 @@ func (p *ConsoleProvider) writeBody(
 	msg Message,
 ) (err error) {
 	if msg.TextContent != "" {
-		w, err = altW.CreatePart(textproto.MIMEHeader{"Content-Type": {contentTypeText}})
+		w, err = altW.CreatePart(textproto.MIMEHeader{headerContentType: {contentTypeText}})
 		if err != nil {
 			return errors.Wrap(err, "creating text/plain part")
 		}
@@ -114,7 +120,7 @@ func (p *ConsoleProvider) writeBody(
 	}
 
 	if msg.HTMLContent != "" {
-		w, err = altW.CreatePart(textproto.MIMEHeader{"Content-Type": {contentTypeHTML}})
+		w, err = altW.CreatePart(textproto.MIMEHeader{headerContentType: {contentTypeHTML}})
 		if err != nil {
 			return errors.Wrap(err, "creating text/html part")
 		}
@@ -135,9 +141,9 @@ func (p *ConsoleProvider) writeAttachments(
 
 	for _, at := range msg.Attachments {
 		w, err = mixedW.CreatePart(textproto.MIMEHeader{
-			"Content-Type":              {at.ContentType},
-			"Content-Transfer-Encoding": {"base64"},
-			"Content-Disposition":       {"attachment; filename=" + at.Filename},
+			headerContentType:        {at.ContentType},
+			headerTransferEncoding:   {"base64"},
+			headerContentDisposition: {"attachment; filename=" + at.Filename},
 		})
 		if err != nil {
 			return errors.Wrap(err, "creating "+at.ContentType+" part")
