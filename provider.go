@@ -65,14 +65,14 @@ func (p *BaseProvider) watch(errC chan<- error) {
 		WithMaxGoroutines(p.maxWorkers)
 
 	for message := range p.queue {
-		msg := &message
+		msg := message
 		wp.Go(func() {
-			if err := p.render(msg); err != nil {
+			if err := p.render(&msg); err != nil {
 				errC <- err
 				return
 			}
 
-			if err := p.send(*msg); err != nil {
+			if err := p.send(msg); err != nil {
 				errC <- errors.Wrapf(err, "sending email %s", msg)
 			}
 		})
