@@ -1,4 +1,6 @@
 # mail
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FTrezcool%2Fmail.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FTrezcool%2Fmail?ref=badge_shield)
+
 
 This is a simple and easy-to-use email library for Go that allows you to send emails from your Go applications.
 
@@ -16,3 +18,7 @@ This is a simple and easy-to-use email library for Go that allows you to send em
 ```bash
 go get github.com/Trezcool/mail
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FTrezcool%2Fmail.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FTrezcool%2Fmail?ref=badge_large)
