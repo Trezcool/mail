@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/pkg/errors v0.9.1
-	github.com/samber/lo v1.38.1
+	github.com/samber/lo v1.39.0
 	github.com/sendgrid/sendgrid-go v3.12.0+incompatible
 	github.com/sourcegraph/conc v0.3.0
 )
