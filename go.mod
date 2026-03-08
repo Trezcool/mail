@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/pkg/errors v0.9.1
-	github.com/samber/lo v1.38.1
+	github.com/samber/lo v1.53.0
 	github.com/sendgrid/sendgrid-go v3.12.0+incompatible
 	github.com/sourcegraph/conc v0.3.0
 )
@@ -16,4 +16,5 @@ require (
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 )
